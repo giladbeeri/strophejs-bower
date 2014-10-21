@@ -2602,6 +2602,8 @@ Strophe.Connection.prototype = {
      *  by sending unavailable presence and sending BOSH body of type
      *  terminate.  A timeout handler makes sure that disconnection happens
      *  even if the BOSH server does not respond.
+     *  If the Connection object isn't connected, at least tries to abort all pending requests
+     *  so the connection object won't generate successful requests (which were already opened).
      *
      *  The user supplied connection callback will be notified of the
      *  progress as this process happens.
@@ -2627,6 +2629,10 @@ Strophe.Connection.prototype = {
             this._disconnectTimeout = this._addSysTimedHandler(
                 3000, this._onDisconnectTimeout.bind(this));
             this._proto._disconnect(pres);
+        } else {
+            Strophe.info("Disconnect was called before Strophe connected to the server");
+            this._proto._abortAllRequests();
+
         }
     },
 
@@ -4172,8 +4178,14 @@ Strophe.Bosh.prototype = {
      *
      *  Cancels all remaining Requests and clears the queue.
      */
-    _onDisconnectTimeout: function ()
-    {
+    _onDisconnectTimeout: function () {
+        this._abortAllRequests();
+    },
+
+    /** PrivateFunction: _abortAllRequests
+     *  _Private_ helper function that makes sure all pending requests are aborted.
+     */
+    _abortAllRequests: function _abortAllRequests() {
         var req;
         while (this._requests.length > 0) {
             req = this._requests.pop();
@@ -4978,6 +4990,11 @@ Strophe.Websocket.prototype = {
      *  This does nothing for WebSockets
      */
     _onDisconnectTimeout: function () {},
+
+    /** PrivateFunction: _abortAllRequests
+     *  _Private_ helper function that makes sure all pending requests are aborted.
+     */
+    _abortAllRequests: function () {},
 
     /** PrivateFunction: _onError
      * _Private_ function to handle websockets errors.
